@@ -7,10 +7,6 @@ The sk2sadat compiler for the ScottKit language allows you to write games for th
 * Easier to understand error messages
 * Automatically fit more data into a game file
 
-## Limitations
-
-Unlike the "official" ScottKit compiler, sk2sadat does not (currently) attempt to stretch larger actions/occurrences across multiple actions. If an action in the ScottKit source code file has too many conditions or commands to fit in a single action in the data file, sk2sadat will fail with an error message.
-
 ## Optimizations
 
 To squeeze the most amount of data out of the Scott Adams ".dat" format when compiling a ScottKit source code file, some methods are to be employed.
