@@ -53,6 +53,50 @@ my %scottkit_header = (
     'wordlen'   => 3,
 );
 
+my %command_condition_cost = (
+    'get'                   => 1,
+    'drop'                  => 1,
+    'goto'                  => 1,
+    'destroy'               => 1,
+    'set_dark'              => 0,
+    'clear_dark'            => 0,
+    'set_flag'              => 1,
+    'destroy2'              => 1,
+    'clear_flag'            => 1,
+    'die'                   => 0,
+    'put'                   => 2,
+    'game_over'             => 0,
+    'look'                  => 0,
+    'score'                 => 0,
+    'inventory'             => 0,
+    'set_flag0'             => 0,
+    'clear_flag0'           => 0,
+    'refill_lamp'           => 0,
+    'clear'                 => 0,
+    'save_game'             => 0,
+    'swap'                  => 2,
+    'continue'              => 0,
+    'superget'              => 1,
+    'put_with'              => 2,
+    'look2'                 => 0,
+    'dec_counter'           => 0,
+    'print_counter'         => 0,
+    'set_counter'           => 1,
+    'swap_room'             => 0,
+    'select_counter'        => 1,
+    'add_to_counter'        => 1,
+    'subtract_from_counter' => 1,
+    'print_noun'            => 0,
+    'println_noun'          => 0,
+    'println'               => 0,
+    'swap_specific_room'    => 1,
+    'pause'                 => 0,
+    'draw'                  => 1,
+    'print'                 => 0,
+    'comment'               => 0,
+    'no_operation'          => 0,
+);
+
 my @scottkit_action;
 my @scottkit_action_comment;
 my @scottkit_room;
@@ -79,6 +123,8 @@ populate_item();
 
 if ( !$do_not_concatenate_messages ) { concatenate_consecutive_prints(); }
 
+extend_long_actions();
+
 move_print_even_to_odd();
 
 populate_messages();
@@ -88,6 +134,122 @@ populate_action();
 populate_header();
 
 print_dat_data();
+
+sub extend_long_actions {
+    for my $action_index ( reverse 0 .. scalar @scottkit_action - 1 ) {
+        if ( action_needs_to_be_extended($action_index) ) {
+            extend_action($action_index);
+        }
+    }
+    return 1;
+}
+
+sub extend_action {
+    my $action_index       = shift;
+    my $original_condition = $scottkit_action[$action_index]{condition};
+    my $original_command   = $scottkit_action[$action_index]{command};
+    my @extended_action;
+    my $extended_counter = 0;
+
+    # Remove any existing continue commands, and add our own.
+    for my $command_index ( reverse 0 .. scalar @{$original_command} - 1 ) {
+        my $code = ${$original_command}[$command_index]{code};
+        if ( $code eq 'continue' ) {
+            splice @{$original_command}, $command_index, 1;
+        }
+    }
+
+    # Inherit properties from the original action on the first extended action
+    $extended_action[$extended_counter]{verb}      = $scottkit_action[$action_index]{verb};
+    $extended_action[$extended_counter]{noun}      = $scottkit_action[$action_index]{noun};
+    $extended_action[$extended_counter]{type}      = $scottkit_action[$action_index]{type};
+    $extended_action[$extended_counter]{line}      = $scottkit_action[$action_index]{line};
+    $extended_action[$extended_counter]{condition} = [];
+    $extended_action[$extended_counter]{command}   = [];
+    foreach ( @{$original_condition} ) {
+        my %condition = ( 'code' => ${$_}{code}, 'argument' => ${$_}{argument} );
+        push @{ $extended_action[$extended_counter]{condition} }, \%condition;
+    }
+    my %command = ( 'code' => 'continue', 'argument_1' => q{}, 'argument_2' => q{} );
+    push @{ $extended_action[$extended_counter]{command} }, \%command;
+
+    # Push commands to extended actions
+    while ( scalar @{ $scottkit_action[$action_index]{command} } > 0 ) {
+        my $command_to_move      = shift @{ $scottkit_action[$action_index]{command} };
+        my $condition_space_left = $CONDITIONS - conditions_in_action( $extended_action[$extended_counter] );
+        my $command_space_left   = $COMMANDS - commands_in_action( $extended_action[$extended_counter] );
+        my $condition_cost       = $command_condition_cost{ $$command_to_move{code} };
+
+        # Create a new action if we've run out of space in condition slots or command slots
+        if ( ( $command_space_left == 0 ) || ( $condition_cost > $condition_space_left ) ) {
+            $extended_counter++;
+            $extended_action[$extended_counter]{verb}      = 0;
+            $extended_action[$extended_counter]{noun}      = 0;
+            $extended_action[$extended_counter]{type}      = 'occur';
+            $extended_action[$extended_counter]{line}      = $scottkit_action[$action_index]{line};
+            $extended_action[$extended_counter]{condition} = [];
+            $extended_action[$extended_counter]{command}   = [];
+        }
+        push @{ $extended_action[$extended_counter]{command} }, $command_to_move;
+    }
+
+    # Insert extended actions in the place of the old long action
+    splice @scottkit_action, $action_index, 1, @extended_action;
+
+    # Duplicate action comment to new extended actions
+    my $action_comment = $scottkit_action_comment[$action_index];
+    my @comment_list = ( ($action_comment) x ( scalar @extended_action ) );
+    splice @scottkit_action_comment, $action_index, 1, @comment_list;
+}
+
+sub conditions_in_action {
+    my $action            = shift;
+    my $condition_counter = scalar @{ ${$action}{condition} };
+    foreach my $commmand_instance ( @{ ${$action}{command} } ) {
+        my $code = ${$commmand_instance}{code};
+        $condition_counter += $command_condition_cost{$code};
+    }
+    return $condition_counter;
+}
+
+sub commands_in_action {
+    my $action          = shift;
+    my $command_counter = scalar @{ ${$action}{command} };
+}
+
+sub action_needs_to_be_extended {
+    my $action_index         = shift;
+    my $condition_score      = 0;
+    my $base_condition_score = 0;
+    my $command_score        = 0;
+    my $command   = $scottkit_action[$action_index]{command};
+    my $condition = $scottkit_action[$action_index]{condition};
+
+    $condition_score = scalar @{$condition};
+    $base_condition_score += $condition_score;
+
+    # Check that number of "base conditions" doesn't exceed the limit of 5.
+    if ( $base_condition_score > $CONDITIONS ) {
+        print STDERR 'ERROR: Too many condition entries ('
+          . $base_condition_score . q{/}
+          . $CONDITIONS
+          . ') in action on line '
+          . $scottkit_action[$action_index]{line}
+          . ". Please consider splitting into subactions or reducing complexity.\n";
+        exit 1;
+    }
+
+    foreach ( @{$command} ) {
+        my $command_code = ${$_}{code};
+        $command_score++;
+        $condition_score += $command_condition_cost{$command_code};
+    }
+
+    if ( $condition_score > $CONDITIONS or $command_score > $COMMANDS ) {
+        return $TRUE;
+    }
+    return $FALSE;
+}
 
 sub print_dat_data {
 
@@ -107,15 +269,11 @@ sub print_dat_data {
     my $number_of_verbs = scalar @final_verb - 1;
     my $number_of_nouns = scalar @final_noun - 1;
     if ( $number_of_verbs > $number_of_nouns ) {
-
-        # print "need to add " . ( $number_of_verbs - $number_of_nouns ) . " nouns\n";
         my @empty = map '', ( 1 .. ( $number_of_verbs - $number_of_nouns ) );
         push @final_noun, @empty;
 
     }
     elsif ( $number_of_nouns > $number_of_verbs ) {
-
-        # print "need to add " . ( $number_of_nouns - $number_of_verbs ) . " verbs\n";
         my @empty = map '', ( 1 .. ( $number_of_nouns - $number_of_verbs ) );
         push @final_verb, @empty;
     }
@@ -157,7 +315,6 @@ sub print_dat_data {
     # Attempt to calculate checksum: (2*#actions + #objects + version)
     my $checksum = ( 2 * scalar @scottkit_action ) + ( scalar @final_item ) + $scottkit_header{version};
     print "$checksum\n";
-
 }
 
 sub populate_header {
@@ -1093,6 +1250,7 @@ sub parse_scottkit_data {
     while (<>) {
         $input_text .= $_;
     }
+    $input_text .= "\n";    # Workaround for bug, when there is no empty last line
 
     my $condition_item_pattern   = qr/\s+([^"\s]+|"[^"]*")/sx;
     my $condition_none_pattern   = qr/()/sx;
