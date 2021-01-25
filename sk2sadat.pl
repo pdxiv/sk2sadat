@@ -522,8 +522,20 @@ sub populate_messages {
 sub move_print_even_to_odd {
 
     # Print "commands"can be swapped with any other commands, except the following
-    my @no_swap_with_print =
-      qw( die game_over inventory look look2 pause print_noun println print_counter println_noun score print );
+    my %no_swap_with_print = (
+        die           => q{},
+        game_over     => q{},
+        inventory     => q{},
+        look          => q{},
+        look2         => q{},
+        pause         => q{},
+        print         => q{},
+        print_noun    => q{},
+        println       => q{},
+        print_counter => q{},
+        println_noun  => q{},
+        score         => q{},
+    );
     my $action_index = 0;
     foreach my $current_action (@scottkit_action) {
         my $current_commands = ${$current_action}{command};
@@ -531,7 +543,7 @@ sub move_print_even_to_odd {
         # Try to swap command index 1 to index 0
         if ( scalar @{$current_commands} > 1 and ${$current_commands}[1]{code} eq 'print' ) {
             my $prev_command_code = ${$current_commands}[0]{code};
-            if ( scalar grep ( /^$prev_command_code$/, @no_swap_with_print ) <= 0 ) {
+            if ( !exists $no_swap_with_print{$prev_command_code} ) {
                 swap_command_order( 1, 0, $current_commands );
             }
         }
@@ -546,7 +558,7 @@ sub move_print_even_to_odd {
                 ${$current_commands}[2]{argument_2} = q{};
             }
             my $next_command_code = ${$current_commands}[2]{code};
-            if ( scalar grep ( /^$next_command_code$/, @no_swap_with_print ) <= 0 ) {
+            if ( !exists $no_swap_with_print{$next_command_code} ) {
                 swap_command_order( 1, 2, $current_commands );
             }
         }
@@ -554,7 +566,7 @@ sub move_print_even_to_odd {
         # Try to swap command index 3 to index 2
         if ( scalar @{$current_commands} > 3 and ${$current_commands}[3]{code} eq 'print' ) {
             my $prev_command_code = ${$current_commands}[2]{code};
-            if ( scalar grep ( /^$prev_command_code$/, @no_swap_with_print ) <= 2 ) {
+            if ( exists $no_swap_with_print{$prev_command_code} ) {
                 swap_command_order( 3, 2, $current_commands );
             }
         }
