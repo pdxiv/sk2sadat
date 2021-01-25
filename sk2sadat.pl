@@ -135,6 +135,24 @@ populate_header();
 
 print_dat_data();
 
+sub defragment_print {
+    my @no_swap_with_print =
+      qw( die game_over look look2 pause print_noun println print_counter println_noun score print );
+
+    for my $action_index ( 0 .. scalar @scottkit_action - 1 ) {
+        print "$action_index\n";
+
+        my $command = $scottkit_action[$action_index]{command};
+        for my $command_index ( reverse 0 .. scalar @{$command} - 1 ) {
+            print "  $command_index ";
+            print ${$command}[$command_index]{code} . "\n";
+            if ( ${$command}[$command_index]{code} eq 'print' ) {
+                print "    print!!\n";
+            }
+        }
+    }
+}
+
 sub extend_long_actions {
     for my $action_index ( reverse 0 .. scalar @scottkit_action - 1 ) {
         if ( action_needs_to_be_extended($action_index) ) {
