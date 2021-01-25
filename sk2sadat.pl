@@ -39,6 +39,7 @@ Readonly::Scalar my $COMMAND_CODE_MULTIPLIER    => 150;
 # Commandline flags (not yet implemented)
 my $do_not_create_noun_for_item = $FALSE;    # May save space in noun table if terp supports it
 my $do_not_concatenate_messages = $FALSE;    # Some advantages, and some disadvantages
+my $buckaroo_mode               = $FALSE;    # Concatenate adjacent print messages on the same line
 
 # Initialize ScottKit header values to defaults, excluding "lightsource"
 my %scottkit_header = (
@@ -121,7 +122,11 @@ populate_vocabulary();
 populate_room();
 populate_item();
 
-if ( !$do_not_concatenate_messages ) { concatenate_consecutive_prints(); }
+if ( !$do_not_concatenate_messages ) {
+    foreach (@scottkit_action) {
+        defragment_print_in_command( ${$_}{command} );
+    }
+}
 
 extend_long_actions();
 
@@ -135,19 +140,75 @@ populate_header();
 
 print_dat_data();
 
-sub defragment_print {
-    my @no_swap_with_print =
-      qw( die game_over look look2 pause print_noun println print_counter println_noun score print );
+sub defragment_print_in_command {
+    my $string_join_character;
+    if ($buckaroo_mode) {
+        $string_join_character = q{ };
+    }
+    else {
+        $string_join_character = "\n";
+    }
+    my %no_swap_with_print = (
+        die           => q{},
+        game_over     => q{},
+        inventory     => q{},
+        look          => q{},
+        look2         => q{},
+        pause         => q{},
+        print_noun    => q{},
+        println       => q{},
+        print_counter => q{},
+        println_noun  => q{},
+        score         => q{},
+    );
+    my $command = shift;
 
-    for my $action_index ( 0 .. scalar @scottkit_action - 1 ) {
-        print "$action_index\n";
+    # Find "print" commands and concatenate with "println" and "print" commands
+    for my $command_index ( reverse 0 .. scalar @{$command} - 1 ) {
+        if ( ${$command}[$command_index]{code} eq 'print' ) {
+            for my $search_index ( reverse 0 .. $command_index - 1 ) {
+                my $found_code = ${$command}[$search_index]{code};
+                if ( $found_code eq 'print' ) {
+                    ${$command}[$search_index]{argument_1} .=
+                      $string_join_character . ${$command}[$command_index]{argument_1};
+                    splice @{$command}, $command_index, 1;
+                    last;
+                }
+                if ( $found_code eq 'println' ) {
+                    ${$command}[$search_index]{argument_1} = "\n${$command}[$command_index]{argument_1}";
+                    ${$command}[$search_index]{code}       = 'print';
+                    splice @{$command}, $command_index, 1;
+                    last;
+                }
+                if ( exists $no_swap_with_print{$found_code} ) {
+                    last;
+                }
+            }
+        }
+    }
 
-        my $command = $scottkit_action[$action_index]{command};
+    # Find and concatenate "println" commands with "print" commands
+    # Find number of "println" in command
+    my $number_of_println = 0;
+    for my $command_index ( reverse 0 .. scalar @{$command} - 1 ) {
+        if ( ${$command}[$command_index]{code} eq 'println' ) { $number_of_println++; }
+    }
+
+    # Repeat until all println resolved
+    for ( 1 .. $number_of_println ) {
         for my $command_index ( reverse 0 .. scalar @{$command} - 1 ) {
-            print "  $command_index ";
-            print ${$command}[$command_index]{code} . "\n";
-            if ( ${$command}[$command_index]{code} eq 'print' ) {
-                print "    print!!\n";
+            if ( ${$command}[$command_index]{code} eq 'println' ) {
+                for my $search_index ( reverse 0 .. $command_index - 1 ) {
+                    my $found_code = ${$command}[$search_index]{code};
+                    if ( $found_code eq 'print' ) {
+                        ${$command}[$search_index]{argument_1} .= "\n";
+                        splice @{$command}, $command_index, 1;
+                        last;
+                    }
+                    if ( exists $no_swap_with_print{$found_code} ) {
+                        last;
+                    }
+                }
             }
         }
     }
@@ -409,47 +470,6 @@ sub populate_header {
     push @final_header, $found_treasure_room;
 }
 
-# show_debugging_info();
-
-# Reduce the number of print commands by converting consecutive print commands
-# into a single print command using a single message separated with newlines.
-# This may be something that one would want to have an option to disable.
-#
-# Advantages:
-# - Allows more messages to escape the 99 message limit
-# - Reduces the number of used commands in an action
-# Disadvantages:
-# - May increase total byte size of messages list.
-# - May the total number of messages, possibly hitting the 218 limit of some terps quicker.
-sub concatenate_consecutive_prints {
-    my $action_index = 0;
-    foreach my $current_action (@scottkit_action) {
-        my $current_commands = ${$current_action}{command};
-        my $command_index    = 0;
-        my @new_commands;
-        my $latest_consecutive_print_index = -1;
-        foreach my $command_instance ( @{$current_commands} ) {
-            if ( ${$command_instance}{code} eq 'print' ) {
-                if ( $latest_consecutive_print_index == -1 ) {
-                    $latest_consecutive_print_index = $command_index;
-                    push @new_commands, $command_instance;
-                }
-                else {
-                    ${$current_commands}[$latest_consecutive_print_index]{argument_1} .=
-                      "\n" . ${$command_instance}{argument_1};
-                }
-            }
-            else {
-                $latest_consecutive_print_index = -1;
-                push @new_commands, $command_instance;
-            }
-            $command_index++;
-        }
-        ${$current_action}{command} = \@new_commands;
-        $action_index++;
-    }
-}
-
 sub populate_messages {
     my %low_message;     # Limited to 99 entries. Used by "even" print commands
     my %high_message;    # Unlimited, disregarding interpreter implementation
@@ -503,7 +523,7 @@ sub move_print_even_to_odd {
 
     # Print "commands"can be swapped with any other commands, except the following
     my @no_swap_with_print =
-      qw( die game_over look look2 pause print_noun println print_counter println_noun score print );
+      qw( die game_over inventory look look2 pause print_noun println print_counter println_noun score print );
     my $action_index = 0;
     foreach my $current_action (@scottkit_action) {
         my $current_commands = ${$current_action}{command};
@@ -1145,121 +1165,6 @@ sub populate_words_at_position {
             ${$final_word}[ $synonym_index + $final_index ] = q{*} . $synonym;
         }
         delete ${$unique_word}{$word_to_add};
-    }
-}
-
-sub show_debugging_info {
-    print "*** DEBUG INFO ABOUT EXTRACTED SCOTTKIT DATA: ***\n\n";
-
-    # Some debugging to see that the header data ends up in the right place.
-    foreach my $header_field ( sort keys %scottkit_header ) {
-        print "$header_field -> $scottkit_header{$header_field}\n";
-    }
-
-    # Some debugging to see that the item data ends up in the right place.
-    my $current_item_index = 0;
-    foreach my $item_instance (@scottkit_item) {
-        print "\n";
-        print "Item $current_item_index\n";
-        foreach ( sort keys %{$item_instance} ) {
-            print "$_ -> ${$item_instance}{$_}\n";
-        }
-        $current_item_index++;
-    }
-
-    # Some debugging to see that the room data ends up in the right place.
-    foreach my $room_instance (@scottkit_room) {
-        print "\n";
-        foreach my $field ( sort keys %{$room_instance} ) {
-            if ( ref( ${$room_instance}{$field} ) eq 'HASH' ) {
-                foreach ( sort keys %{ ${$room_instance}{$field} } ) {
-                    print "$field -> $_ -> ${$room_instance}{$field}{$_}\n";
-                }
-            }
-            else {
-                print "$field -> ${$room_instance}{$field}\n";
-            }
-        }
-    }
-
-    # Some debugging to see that the verbgroup data ends up in the right place.
-    print "\n";
-    foreach my $verbgroup_instance ( sort keys %scottkit_verbgroup ) {
-        my $synonym = $scottkit_verbgroup{$verbgroup_instance}{synonym};
-        print $verbgroup_instance . ' -> ' . join( ', ', @{$synonym} ) . "\n";
-    }
-
-    # Some debugging to see that the noungroup data ends up in the right place.
-    print "\n";
-    foreach my $noungroup_instance ( sort keys %scottkit_noungroup ) {
-        my $synonym = $scottkit_noungroup{$noungroup_instance}{synonym};
-        print $noungroup_instance . ' -> ' . join( ', ', @{$synonym} ) . "\n";
-    }
-
-    # Some debugging to see that the action data ends up in the right place.
-    foreach my $action_instance (@scottkit_action) {
-        print "\n";
-        foreach my $action_instance_key ( sort keys %{$action_instance} ) {
-            if ( ref( ${$action_instance}{$action_instance_key} ) eq 'ARRAY' ) {
-                foreach my $key_in_array ( @{ ${$action_instance}{$action_instance_key} } ) {
-                    foreach ( sort keys %{$key_in_array} ) {
-                        print "$action_instance_key -> $_ -> ${$key_in_array}{$_}\n";
-                    }
-                }
-            }
-            else {
-                print "$action_instance_key -> ${$action_instance}{$action_instance_key}\n";
-            }
-        }
-    }
-
-    print "\n*** DEBUG INFO ABOUT PROCESSED VOCABULARY: ***\n\n";
-    print "Verbs:\n";
-    foreach my $index ( 0 .. scalar @final_verb - 1 ) {
-        print "$index $final_verb[$index]\n";
-    }
-    print "\n";
-    print "Nouns:\n";
-    foreach my $index ( 0 .. scalar @final_noun - 1 ) {
-        print "$index $final_noun[$index]\n";
-    }
-
-    print "\n*** DEBUG INFO ABOUT PROCESSED ROOMS: ***\n\n";
-    my $room_field_index = 0;
-    foreach (@final_room) {
-        if ( ( $room_field_index % $FIELDS_IN_ROOM ) == $FIELDS_IN_ROOM - 1 ) {
-            print "\"$_\"\n";
-        }
-        else {
-            print "$_\n";
-        }
-        $room_field_index++;
-    }
-
-    print "\n*** DEBUG INFO ABOUT PROCESSED ITEMS: ***\n\n";
-
-    my $item_counter = 0;
-    foreach my $item_instance (@final_item) {
-        my $description = q{"} . ${$item_instance}[0];
-        if ( defined ${$item_instance}[1] ) {
-            $description .= q{/} . ${$item_instance}[1] . q{/};
-        }
-        $description = $description . q{"};
-        $description .= q{ } . ${$item_instance}[2];
-        print "$item_counter $description\n";
-        $item_counter++;
-    }
-
-    print "\n*** DEBUG INFO ABOUT ACTION COMMENTS: ***\n\n";
-    for my $comment_index ( 0 .. scalar @scottkit_action_comment - 1 ) {
-        print "$comment_index $scottkit_action_comment[$comment_index]\n";
-    }
-
-    print "\n*** DEBUG INFO ABOUT MESSAGES: ***\n\n";
-    print scalar @final_message;
-    print " messages\n";
-    for my $message_index ( 0 .. scalar @final_message - 1 ) {
-        print "$message_index $final_message[$message_index]\n";
     }
 }
 
