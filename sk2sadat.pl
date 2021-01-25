@@ -222,8 +222,8 @@ sub action_needs_to_be_extended {
     my $condition_score      = 0;
     my $base_condition_score = 0;
     my $command_score        = 0;
-    my $command   = $scottkit_action[$action_index]{command};
-    my $condition = $scottkit_action[$action_index]{condition};
+    my $command              = $scottkit_action[$action_index]{command};
+    my $condition            = $scottkit_action[$action_index]{condition};
 
     $condition_score = scalar @{$condition};
     $base_condition_score += $condition_score;
