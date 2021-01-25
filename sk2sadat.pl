@@ -519,6 +519,8 @@ sub populate_messages {
 # This subroutine should attempt to move print commands in actions from "even" positions
 # to "odd" positions, since even "print commands" are limited to 99 messages.
 # This requires the addition of a "no_operation" command
+# Print commands with command index 1 and 3 are bad, since this wastes space in the message table.
+# They should be swapped with other commands with index 0 and 2, if possible!
 sub move_print_even_to_odd {
 
     # Print "commands"can be swapped with any other commands, except the following
@@ -536,62 +538,42 @@ sub move_print_even_to_odd {
         println_noun  => q{},
         score         => q{},
     );
-    my $action_index = 0;
+
+    # Pad unused command slots with "no_operation"
+    foreach my $current_action (@scottkit_action) {
+        my $current_commands = ${$current_action}{command};
+        my $noop_to_add      = $COMMANDS - scalar @{$current_commands};
+        for ( 1 .. $noop_to_add ) {
+            my %noop_data = (
+                'code'       => 'no_operation',
+                'argument_1' => q{},
+                'argument_2' => q{},
+            );
+            push @{$current_commands}, \%noop_data;
+        }
+    }
+
     foreach my $current_action (@scottkit_action) {
         my $current_commands = ${$current_action}{command};
 
-        # Try to swap command index 1 to index 0
-        if ( scalar @{$current_commands} > 1 and ${$current_commands}[1]{code} eq 'print' ) {
-            my $prev_command_code = ${$current_commands}[0]{code};
-            if ( !exists $no_swap_with_print{$prev_command_code} ) {
-                swap_command_order( 1, 0, $current_commands );
+        # Attempt to swap print command with index 1 with index 0
+        if ( ${$current_commands}[1]{code} eq 'print' ) {
+            if ( !exists $no_swap_with_print{ ${$current_commands}[0]{code} } ) {
+                my $temp_command_data = ${$current_commands}[0];
+                ${$current_commands}[0] = ${$current_commands}[1];
+                ${$current_commands}[1] = $temp_command_data;
             }
         }
 
-        # Try to swap command index 1 to index 2
-        if ( scalar @{$current_commands} > 1 and ${$current_commands}[1]{code} eq 'print' ) {
-
-            # If next command entry doesn't exist, populate with "no_operation"
-            if ( scalar @{$current_commands} < 3 ) {
-                ${$current_commands}[2]{code}       = 'no_operation';
-                ${$current_commands}[2]{argument_1} = q{};
-                ${$current_commands}[2]{argument_2} = q{};
-            }
-            my $next_command_code = ${$current_commands}[2]{code};
-            if ( !exists $no_swap_with_print{$next_command_code} ) {
-                swap_command_order( 1, 2, $current_commands );
+        # Attempt to swap print command with index 3 with index 2
+        if ( ${$current_commands}[3]{code} eq 'print' ) {
+            if ( !exists $no_swap_with_print{ ${$current_commands}[2]{code} } ) {
+                my $temp_command_data = ${$current_commands}[2];
+                ${$current_commands}[2] = ${$current_commands}[3];
+                ${$current_commands}[3] = $temp_command_data;
             }
         }
-
-        # Try to swap command index 3 to index 2
-        if ( scalar @{$current_commands} > 3 and ${$current_commands}[3]{code} eq 'print' ) {
-            my $prev_command_code = ${$current_commands}[2]{code};
-            if ( exists $no_swap_with_print{$prev_command_code} ) {
-                swap_command_order( 3, 2, $current_commands );
-            }
-        }
-        $action_index++;
     }
-}
-
-sub swap_command_order {
-    my $source           = shift;
-    my $destination      = shift;
-    my $current_commands = shift;
-
-    my ( $temp_code, $temp_argument_1, $temp_argument_2 );
-
-    $temp_code       = ${$current_commands}[$destination]{code};
-    $temp_argument_1 = ${$current_commands}[$destination]{argument_1};
-    $temp_argument_2 = ${$current_commands}[$destination]{argument_2};
-
-    ${$current_commands}[$destination]{code}       = ${$current_commands}[$source]{code};
-    ${$current_commands}[$destination]{argument_1} = ${$current_commands}[$source]{argument_1};
-    ${$current_commands}[$destination]{argument_2} = ${$current_commands}[$source]{argument_2};
-
-    ${$current_commands}[$source]{code}       = $temp_code;
-    ${$current_commands}[$source]{argument_1} = $temp_argument_1;
-    ${$current_commands}[$source]{argument_2} = $temp_argument_2;
 }
 
 sub print_action_commands {
