@@ -556,11 +556,16 @@ sub move_print_even_to_odd {
     foreach my $current_action (@scottkit_action) {
         my $current_commands = ${$current_action}{command};
 
-        # Attempt to swap print command with index 1 with index 0
+        # Attempt to swap print command with index 1 with index 0, or index 2
         if ( ${$current_commands}[1]{code} eq 'print' ) {
             if ( !exists $no_swap_with_print{ ${$current_commands}[0]{code} } ) {
                 my $temp_command_data = ${$current_commands}[0];
                 ${$current_commands}[0] = ${$current_commands}[1];
+                ${$current_commands}[1] = $temp_command_data;
+            }
+            elsif ( !exists $no_swap_with_print{ ${$current_commands}[2]{code} } ) {
+                my $temp_command_data = ${$current_commands}[2];
+                ${$current_commands}[2] = ${$current_commands}[1];
                 ${$current_commands}[1] = $temp_command_data;
             }
         }
