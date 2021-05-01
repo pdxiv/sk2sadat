@@ -7,6 +7,16 @@ The sk2sadat compiler for the ScottKit language allows you to write games for th
 * Easier to understand error messages
 * Automatically fit more data into a game file
 
+## How to use
+
+Simply download the `sk2sadat.pl` file to wherever you want to use it. 
+
+Assuming that you have `sk2sadat.pl` in the same directory as a ScottKit source code file called `mygameproject.sck` and you want to make a game file called `mygameproject.dat`, the following commandline should work in Linux or MacOS (in Windows, you'd probably want to replace the `./` with `perl ` in the beginning):
+
+```bash
+./sk2sadat.pl mygameproject.sck > mygameproject.dat
+```
+
 ## Optimizations
 
 To squeeze the most amount of data out of the Scott Adams ".dat" format when compiling a ScottKit source code file, some methods are to be employed.
