@@ -44,8 +44,8 @@ my %scottkit_header = (
     'ident'     => 0,
     'lighttime' => $REALLY_BIG_NUMBER,
     'maxload'   => $REALLY_BIG_NUMBER,
-    'start'     => 'nowhere',
-    'treasury'  => 'nowhere',
+    'start'     => undef,
+    'treasury'  => undef,
     'unknown1'  => 0,
     'unknown2'  => 0,
     'version'   => 0,
@@ -1382,6 +1382,10 @@ sub parse_scottkit_data {
                         exit 1;
                     }
                 }
+
+                # Automatically set the start room and the treasury to the first room initially
+                if ( !defined $scottkit_header{start} )    { $scottkit_header{start}    = $room_id; }
+                if ( !defined $scottkit_header{treasury} ) { $scottkit_header{treasury} = $room_id; }
 
                 $scottkit_room[$room_counter]{line}        = $line_number;
                 $scottkit_room[$room_counter]{id}          = $room_id;
