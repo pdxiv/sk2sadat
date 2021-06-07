@@ -1534,6 +1534,7 @@ sub parse_scottkit_data {
         if ( $parser_state eq 'item' ) {
             if ( $next =~ /^$item_noun_pattern/sx ) {
                 ( $item_noun, $next ) = $next =~ /$item_noun_pattern/sx;
+                $item_noun =~ s/^"([^"]*)"/$1/msx;
                 $scottkit_item[$item_counter]{noun} = $item_noun;
                 next;
             }
