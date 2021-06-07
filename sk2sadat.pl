@@ -2,39 +2,37 @@
 use strict;
 use warnings;
 use English qw( -no_match_vars );
-use Carp;
-use Readonly;
 our $VERSION = '0.0.1';
 
 # Constants
-Readonly::Scalar my $REALLY_BIG_NUMBER          => 32_767;
-Readonly::Scalar my $VERB_AUTO                  => 0;
-Readonly::Scalar my $VERB_GO                    => 1;
-Readonly::Scalar my $VERB_CARRY                 => 10;
-Readonly::Scalar my $VERB_DROP                  => 18;
-Readonly::Scalar my $NOUN_ANY                   => 0;
-Readonly::Scalar my $NOUN_NORTH                 => 1;
-Readonly::Scalar my $NOUN_SOUTH                 => 2;
-Readonly::Scalar my $NOUN_EAST                  => 3;
-Readonly::Scalar my $NOUN_WEST                  => 4;
-Readonly::Scalar my $NOUN_UP                    => 5;
-Readonly::Scalar my $NOUN_DOWN                  => 6;
-Readonly::Scalar my $INITIAL_DATA_COUNTER_VALUE => -1;
-Readonly::Scalar my $TRUE                       => -1;
-Readonly::Scalar my $FALSE                      => 0;
-Readonly::Scalar my $CARDINAL_DIRECTIONS        => 6;
-Readonly::Scalar my $FIELDS_IN_ROOM             => $CARDINAL_DIRECTIONS + 1;
-Readonly::Scalar my $FIELDS_IN_ITEM             => 3;
-Readonly::Scalar my $LIGHSOURCE_POSITION        => 9;
-Readonly::Scalar my $MINIMUM_ITEMS              => $LIGHSOURCE_POSITION + 1;
-Readonly::Scalar my $MAXIMUM_ACTION_NOUNS       => 150;
-Readonly::Scalar my $MAXIMUM_EVEN_MESSAGES      => 99;
-Readonly::Scalar my $CONDITION_MULTIPLIER       => 20;
-Readonly::Scalar my $CONDITIONS                 => 5;
-Readonly::Scalar my $COMMANDS                   => 4;
-Readonly::Scalar my $LOW_MESSAGE_LIMIT          => 51;
-Readonly::Scalar my $RESERVED_COMMAND_CODES     => 50;
-Readonly::Scalar my $COMMAND_CODE_MULTIPLIER    => 150;
+my $REALLY_BIG_NUMBER          = 32_767;
+my $VERB_AUTO                  = 0;
+my $VERB_GO                    = 1;
+my $VERB_CARRY                 = 10;
+my $VERB_DROP                  = 18;
+my $NOUN_ANY                   = 0;
+my $NOUN_NORTH                 = 1;
+my $NOUN_SOUTH                 = 2;
+my $NOUN_EAST                  = 3;
+my $NOUN_WEST                  = 4;
+my $NOUN_UP                    = 5;
+my $NOUN_DOWN                  = 6;
+my $INITIAL_DATA_COUNTER_VALUE = -1;
+my $TRUE                       = -1;
+my $FALSE                      = 0;
+my $CARDINAL_DIRECTIONS        = 6;
+my $FIELDS_IN_ROOM             = $CARDINAL_DIRECTIONS + 1;
+my $FIELDS_IN_ITEM             = 3;
+my $LIGHSOURCE_POSITION        = 9;
+my $MINIMUM_ITEMS              = $LIGHSOURCE_POSITION + 1;
+my $MAXIMUM_ACTION_NOUNS       = 150;
+my $MAXIMUM_EVEN_MESSAGES      = 99;
+my $CONDITION_MULTIPLIER       = 20;
+my $CONDITIONS                 = 5;
+my $COMMANDS                   = 4;
+my $LOW_MESSAGE_LIMIT          = 51;
+my $RESERVED_COMMAND_CODES     = 50;
+my $COMMAND_CODE_MULTIPLIER    = 150;
 
 # Commandline flags (not yet implemented)
 my $do_not_create_noun_for_item = $FALSE;    # May save space in noun table if terp supports it
