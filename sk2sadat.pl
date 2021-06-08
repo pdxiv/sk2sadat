@@ -1023,6 +1023,7 @@ sub populate_vocabulary {
 
     add_synonym_to_words( \%scottkit_verbgroup, \%unique_verb );
     add_synonym_to_words( \%scottkit_noungroup, \%unique_action_noun );
+    add_synonym_to_words( \%scottkit_noungroup, \%unique_item_noun );
 
     # First we need to populate "hard coded" verbs and nouns.
     # Put unique words into final lists
